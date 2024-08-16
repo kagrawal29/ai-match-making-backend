@@ -1,8 +1,8 @@
-//backend/server.js
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const { extractStartupInfo } = require('./UrlProcessor.js');
+const { extractStructuredData } = require('./GPT4Processor.js');
 
 dotenv.config();
 
@@ -23,9 +23,13 @@ app.post('/api/extract-info', async (req, res) => {
     if (!url) {
       return res.status(400).json({ error: 'URL is required' });
     }
-    const startupInfo = await extractStartupInfo(url);
-    console.log('Sending response to frontend:', JSON.stringify(startupInfo, null, 2));
-    res.json(startupInfo);
+    const rawInfo = await extractStartupInfo(url);
+    const structuredData = await extractStructuredData(
+      rawInfo.generalInfo,
+      rawInfo.websiteContent
+    );
+    console.log('Structured Data:', JSON.stringify(structuredData, null, 2));
+    res.json(structuredData);
   } catch (error) {
     console.error('Server error:', error);
     res.status(500).json({ 

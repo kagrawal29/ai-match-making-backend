@@ -1,4 +1,3 @@
-//backend/PerplexityApi.js
 const { OpenAI } = require('openai');
 require('dotenv').config();
 
@@ -8,7 +7,7 @@ const client = new OpenAI({
   baseURL: "https://api.perplexity.ai"
 });
 
-const sysMsg = `You are a world class researcher at Qubit Capital, a digital investment bank which helps startups (its clients) connect and raise capital from potential investors including VCs, PEs, Family Offices and Strategic corporates. You have to research for the most relevant and up to date information based on the user's search queries. Always respond with clean JSON without any markdown formatting.`;
+const sysMsg = `You are a world class researcher at Qubit Capital, a digital investment bank which helps startups connect and raise capital from potential investors. Provide accurate information about the given startup. If you can't find specific information, clearly state that. Always include the source URL for funding information if available.`;
 
 async function perplexityAPICall(userMsg) {
   try {
@@ -26,51 +25,21 @@ async function perplexityAPICall(userMsg) {
   }
 }
 
-async function perplexityResponse(userMsg) {
-  const { response, error } = await perplexityAPICall(userMsg);
-  if (error) {
-    console.error(`Error in API call: ${response}`);
-    return null;
-  } else {
-    return response.choices[0].message.content;
-  }
-}
-
-function cleanJsonResponse(response) {
-  // Remove any markdown formatting
-  let cleaned = response.replace(/```json\s?|```/g, '');
-  
-  // Trim any leading or trailing whitespace
-  cleaned = cleaned.trim();
-  
-  // If the response doesn't start with '{', assume it's not JSON and return null
-  if (!cleaned.startsWith('{')) {
-    console.error('Response is not in expected JSON format:', cleaned);
-    return null;
-  }
-  
-  return cleaned;
-}
-
-async function getStartupInfo(website) {
-  const overviewMsg = `Provide a JSON object with "companyName"(name of the company), "companyIndustry"(which industry company belongs to), "companyGeography"(which country company is based out of), "companyLinkedinURL"(Linkedin URL of the company) and "companyTeamSize"(Team size of the company) as the keys for the startup: ${website}. Respond with clean JSON only, no markdown.`;
+async function getGeneralStartupInfo(website) {
+  const infoMsg = `Provide general information about the startup ${website}. Include details about the company, its location, and any funding information you can find. If you find funding information, please provide the source URL. Do not make up any information. If you can't find certain details, clearly state that the information is not available. Focus on getting the funding details and the company location.`;
   
   try {
-    const overview = await perplexityResponse(overviewMsg);
-    if (!overview) {
-      throw new Error('Failed to get startup information');
+    const { response, error } = await perplexityAPICall(infoMsg);
+    if (error) {
+      throw new Error('Failed to get startup information from Perplexity');
     }
-    
-    const cleanedJson = cleanJsonResponse(overview);
-    if (!cleanedJson) {
-      throw new Error('Failed to parse startup information');
-    }
-    
-    return JSON.parse(cleanedJson);
+    const content = response.choices[0].message.content;
+    console.log('Perplexity API Response:', content);
+    return content;
   } catch (error) {
-    console.error('Error getting startup info:', error);
+    console.error('Error getting startup info from Perplexity:', error);
     throw error;
   }
 }
 
-module.exports = { getStartupInfo };
+module.exports = { getGeneralStartupInfo };
