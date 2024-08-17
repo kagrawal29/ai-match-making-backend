@@ -1,7 +1,7 @@
 const OpenAI = require("openai");
 const { z } = require("zod");
 const { zodResponseFormat } = require("openai/helpers/zod");
-const { MongoClient } = require('mongodb');
+const { MongoClient, ObjectId } = require('mongodb');
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
@@ -10,13 +10,14 @@ const openai = new OpenAI({
 // MongoDB setup
 const mongoUri = 'mongodb://localhost:27017/';
 const dbName = 'InvestorData';
-let investmentsCollection;
+let investmentsCollection, investorsCollection;
 
 async function connectToMongo() {
     const client = new MongoClient(mongoUri);
     await client.connect();
     const db = client.db(dbName);
     investmentsCollection = db.collection('Investments');
+    investorsCollection = db.collection('Investors');
 }
 
 async function getUniqueValues(field) {
@@ -24,7 +25,7 @@ async function getUniqueValues(field) {
 }
 
 const MappingSchema = z.object({
-    mapped_verticlas: z.array(z.string()),
+    mapped_verticals: z.array(z.string()),
     mapped_stage: z.array(z.string()),
     mapped_country: z.string(),
 });
@@ -45,12 +46,12 @@ async function mapStartupData(startupData) {
     - Fund Ask: ${startupData.fundAsk}
     
     Investment Database Fields:
+    - Investment Sectors: ${investmentSectors.join(', ')}
     - Investment Stages: ${investmentStages.join(', ')}
     - Investment Country: ${investmentCountries.join(', ')}
     
-    Provide the mapping for these two fields only. Choose the closest and the relevant matches for the investment stages based on the funding stage and fund ask. Fund ask is in $millions.
-    If, fundask is more than 1, then both 'Seed' and 'Series A' would be good matches for mapped_stage. If fund ask is less than 1, map only 'Seed' to mapped_stage. For higher asks and basis funding stage, other options could be good matches.
-    Choose only single best match for the country.
+    Provide the mapping for these fields. Choose the closest and the relevant matches for the investment sectors and stages. For the country, choose only the single best match.
+    If fund ask is more than 1, then both 'Seed' and 'Series A' would be good matches for mapped_stage. If fund ask is less than 1, map only 'Seed' to mapped_stage. For higher asks and based on funding stage, other options could be good matches.
     `;
 
     try {
@@ -72,7 +73,84 @@ async function mapStartupData(startupData) {
     }
 }
 
+async function fetchInvestors(mappedData) {
+    if (!mappedData || typeof mappedData !== 'object') {
+        throw new Error('Invalid mapped data');
+    }
+
+    const { mapped_verticals, mapped_stage, mapped_country } = mappedData;
+
+    if (!Array.isArray(mapped_verticals) || !Array.isArray(mapped_stage) || typeof mapped_country !== 'string') {
+        throw new Error('Mapped data has incorrect structure');
+    }
+
+    const combinations = mapped_verticals.flatMap(vertical => 
+        mapped_stage.map(stage => ({ vertical, stage, country: mapped_country }))
+    );
+
+    let allMatchingInvestments = [];
+
+    for (const combo of combinations) {
+        console.log(`Searching for: ${JSON.stringify(combo)}`);
+        const matchingInvestments = await investmentsCollection.find({
+            investment_sector: combo.vertical,
+            investment_stage: combo.stage,
+            investment_country: combo.country
+        }).toArray();
+        console.log(`Found ${matchingInvestments.length} matching investments`);
+
+        allMatchingInvestments = allMatchingInvestments.concat(matchingInvestments);
+    }
+
+    console.log(`Total matching investments: ${allMatchingInvestments.length}`);
+
+    // Extract unique investor IDs
+    const investorIds = [...new Set(allMatchingInvestments.map(inv => inv.investor_id))];
+    console.log(`Unique investor IDs found: ${investorIds.length}`);
+
+    if (investorIds.length === 0) {
+        console.log('No investor IDs found. Returning empty array.');
+        return [];
+    }
+
+    // Log a sample of investor IDs for debugging
+    console.log('Sample investor IDs:', investorIds.slice(0, 5));
+
+    // Fetch full investor details
+    const investors = await investorsCollection.find({
+        _id: { $in: investorIds.map(id => {
+            try {
+                return new ObjectId(id);
+            } catch (error) {
+                console.error(`Invalid ObjectId: ${id}`);
+                return null;
+            }
+        }).filter(id => id !== null) }
+    }).toArray();
+
+    console.log(`Fetched ${investors.length} investors from the database`);
+
+    if (investors.length === 0) {
+        console.log('No investors found in the database. Check if investor IDs exist in the Investors collection.');
+    }
+
+    return investors;
+}
+
+async function matchInvestors(startupData) {
+    try {
+        const mappedData = await mapStartupData(startupData);
+        console.log('Mapped Data:', JSON.stringify(mappedData, null, 2));
+        const matchedInvestors = await fetchInvestors(mappedData);
+        console.log(`Returning ${matchedInvestors.length} matched investors`);
+        return matchedInvestors;
+    } catch (error) {
+        console.error('Error in matchInvestors:', error);
+        throw error;
+    }
+}
+
 module.exports = {
     connectToMongo,
-    mapStartupData
+    matchInvestors
 };

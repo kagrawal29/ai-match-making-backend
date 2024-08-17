@@ -3,7 +3,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const { extractStartupInfo } = require('./UrlProcessor.js');
 const { extractStructuredData } = require('./GPT4Processor.js');
-const { connectToMongo, mapStartupData } = require('./investorMatcher');
+const { connectToMongo, matchInvestors } = require('./investorMatcher');
 
 dotenv.config();
 
@@ -44,15 +44,14 @@ app.post('/api/extract-info', async (req, res) => {
   }
 });
 
-// In your API route for matching investors:
-app.post('/api/map-startup-data', async (req, res) => {
+app.post('/api/match-investors', async (req, res) => {
   try {
     const startupData = req.body;
-    const mappedData = await mapStartupData(startupData);
-    res.json(mappedData);
+    const matchedInvestors = await matchInvestors(startupData);
+    res.json(matchedInvestors);
   } catch (error) {
-    console.error('Error mapping startup data:', error);
-    res.status(500).json({ error: 'An error occurred while mapping startup data' });
+    console.error('Error matching investors:', error);
+    res.status(500).json({ error: 'An error occurred while matching investors' });
   }
 });
 
