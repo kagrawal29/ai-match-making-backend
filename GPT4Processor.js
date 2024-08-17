@@ -13,7 +13,7 @@ const StartupSchema = z.object({
     verticals: z.array(z.enum(VERTICALS)),
     startupLocation: z.string(),
     startupIntro: z.string(),
-    fundask: z.number({ float: true }),
+    fundAsk: z.number({ float: true }),
     fundingStage: z.enum(["Seed", "Series A", "Series B", "Series C", "Series D+"]),
     lastFundingRound: z.object({
         amount: z.number({ float: true }),
@@ -41,7 +41,7 @@ async function extractStructuredData(generalInfo, websiteContent) {
 
     startupIntro gives an overview of the startup and describes what it does.
     
-    fundAsk and fundingStage are the estimated fund ask and funding stage of the startup basis, the last funding round primarily, also basis on what the company does and it's location. If the last funding round is Pre-seed or seed, next will be series A, if last is series A, next will be series B, and so on. Similarly, if the last funding round was 2 million, next could be 7 million, if the last finding round was 6 million, next could be 15 million, it would always be more than the last funding round.
+    fundAsk and fundingStage are the estimated fund ask and funding stage of the startup basis, the last funding round primarily, also basis on what the company does and it's location. If the last funding round is Pre-seed or seed, fundingStage will be series A, if last is series A, fundingStage will be series B, and so on. Similarly, if the last funding round was 2 million, fundAsk could be 7 million, if the last finding round was 6 million, fundAsk could be 15 million, if the last funding round was 150, fundAsk could be 250. It would always be more than the last funding round.
     If there were no previous funding round, fundAsk could be between 0.5 to 2 and fundingStage could be Seed or SeriesA.
 
     Provide the fundAsk and amount number in $millions. For example, instead of 3500000, provide 3.5.
