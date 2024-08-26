@@ -88,7 +88,7 @@ async function fetchInvestors(mappedData) {
         mapped_stage.map(stage => ({ vertical, stage, country: mapped_country }))
     );
 
-    let allMatchingInvestments = [];
+    let investorData = {};
 
     for (const combo of combinations) {
         console.log(`Searching for: ${JSON.stringify(combo)}`);
@@ -99,13 +99,18 @@ async function fetchInvestors(mappedData) {
         }).toArray();
         console.log(`Found ${matchingInvestments.length} matching investments`);
 
-        allMatchingInvestments = allMatchingInvestments.concat(matchingInvestments);
+        matchingInvestments.forEach(inv => {
+            if (!investorData[inv.investor_id]) {
+                investorData[inv.investor_id] = {
+                    combinations: {}
+                };
+            }
+            const comboName = `${combo.vertical}-${combo.stage}-${combo.country}`;
+            investorData[inv.investor_id].combinations[comboName] = inv.investments || 0;
+        });
     }
 
-    console.log(`Total matching investments: ${allMatchingInvestments.length}`);
-
-    // Extract unique investor IDs
-    const investorIds = [...new Set(allMatchingInvestments.map(inv => inv.investor_id))];
+    const investorIds = Object.keys(investorData);
     console.log(`Unique investor IDs found: ${investorIds.length}`);
 
     if (investorIds.length === 0) {
@@ -113,7 +118,6 @@ async function fetchInvestors(mappedData) {
         return [];
     }
 
-    // Log a sample of investor IDs for debugging
     console.log('Sample investor IDs:', investorIds.slice(0, 5));
 
     // Fetch full investor details
@@ -130,11 +134,25 @@ async function fetchInvestors(mappedData) {
 
     console.log(`Fetched ${investors.length} investors from the database`);
 
-    if (investors.length === 0) {
-        console.log('No investors found in the database. Check if investor IDs exist in the Investors collection.');
+    // Combine investor details with investment counts
+    let detailedInvestors = investors.map(investor => ({
+        ...investor,
+        investmentCounts: investorData[investor._id.toString()].combinations
+    }));
+
+    // Sort investors by total investment count
+    detailedInvestors.sort((a, b) => {
+        const totalA = Object.values(a.investmentCounts).reduce((sum, count) => sum + count, 0);
+        const totalB = Object.values(b.investmentCounts).reduce((sum, count) => sum + count, 0);
+        return totalB - totalA;
+    });
+
+    if (detailedInvestors.length > 100) {
+        detailedInvestors = detailedInvestors.slice(0, 100);
+        console.log('Only returning first 100 investors, as there are more than 100');
     }
 
-    return investors;
+    return detailedInvestors;
 }
 
 async function matchInvestors(startupData) {

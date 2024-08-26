@@ -8,7 +8,7 @@ const VERTICALS = [
     "FinTech",
     "HealthTech",
     "SaaS",
-    "Cryptocurrency/Blockchain",
+    "Cryptocurrency Blockchain",
     "Digital Health",
     "AdTech",
     "Big Data",
