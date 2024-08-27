@@ -21,7 +21,7 @@ app.get('/', (req, res) => {
   res.send('Investor Matchmaking API is running');
 });
 
-app.post('/api/extract-info', async (req, res) => {
+app.post('/extract-info', async (req, res) => {
   try {
     const { url } = req.body;
     if (!url) {
@@ -44,7 +44,7 @@ app.post('/api/extract-info', async (req, res) => {
   }
 });
 
-app.post('/api/match-investors', async (req, res) => {
+app.post('/match-investors', async (req, res) => {
   try {
     const startupData = req.body;
     const matchedInvestors = await matchInvestors(startupData);
