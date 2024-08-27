@@ -21,6 +21,10 @@ app.get('/', (req, res) => {
   res.send('Investor Matchmaking API is running');
 });
 
+app.get('/test', (req, res) => {
+  res.send('Investor Matchmaking API is running');
+});
+
 app.post('/extract-info', async (req, res) => {
   try {
     const { url } = req.body;
