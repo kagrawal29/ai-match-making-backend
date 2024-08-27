@@ -1,0 +1,59 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches: [ master, development ]
+  pull_request:
+    branches: [ master, development ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Use Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '14.x'
+    - run: npm ci
+    - run: npm test
+
+  deploy-staging:
+    needs: test
+    if: github.ref == 'refs/heads/development'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Deploy to Staging
+      env:
+        HOST: ${{ secrets.STAGING_HOST }}
+        USER: ${{ secrets.STAGING_USER }}
+        PRIVATE_KEY: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+      run: |
+        echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+        ssh -o StrictHostKeyChecking=no -i private_key ${USER}@${HOST} '
+          cd /var/www/staging-api-qubit-capital &&
+          git pull origin development &&
+          npm install &&
+          pm2 restart qubit-api-staging
+        '
+
+  deploy-production:
+    needs: test
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Deploy to Production
+      env:
+        HOST: ${{ secrets.PRODUCTION_HOST }}
+        USER: ${{ secrets.PRODUCTION_USER }}
+        PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
+      run: |
+        echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+        ssh -o StrictHostKeyChecking=no -i private_key ${USER}@${HOST} '
+          cd /var/www/qubit-capital/api &&
+          git pull origin master &&
+          npm install &&
+          pm2 restart qubit-api-production
+        '
