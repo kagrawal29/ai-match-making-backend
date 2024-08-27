@@ -10,11 +10,11 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Use Node.js
-      uses: actions/setup-node@v2
+      uses: actions/setup-node@v3
       with:
-        node-version: '14.x'
+        node-version: '16.x'
     - run: npm ci
     - run: npm test
 
@@ -23,7 +23,7 @@ jobs:
     if: github.ref == 'refs/heads/development'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Deploy to Staging
       env:
         HOST: ${{ secrets.SERVER_HOST }}
@@ -32,7 +32,9 @@ jobs:
       run: |
         echo "$PRIVATE_KEY" > private_key.pem && chmod 600 private_key.pem
         ssh -o StrictHostKeyChecking=no -i private_key.pem ${USER}@${HOST} '
-          cd /var/www/staging-api-qubit-capital &&
+          cd /var/www/staging-api-qubit-capital/ai-match-making-backend &&
+          git fetch origin &&
+          git checkout development &&
           git pull origin development &&
           npm install &&
           pm2 restart qubit-api-staging
@@ -43,7 +45,7 @@ jobs:
     if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Deploy to Production
       env:
         HOST: ${{ secrets.SERVER_HOST }}
@@ -52,7 +54,9 @@ jobs:
       run: |
         echo "$PRIVATE_KEY" > private_key.pem && chmod 600 private_key.pem
         ssh -o StrictHostKeyChecking=no -i private_key.pem ${USER}@${HOST} '
-          cd /var/www/qubit-capital/api &&
+          cd /var/www/qubit-capital/api/ai-match-making-backend &&
+          git fetch origin &&
+          git checkout master &&
           git pull origin master &&
           npm install &&
           pm2 restart qubit-api-production
